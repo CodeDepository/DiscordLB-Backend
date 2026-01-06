@@ -216,6 +216,12 @@ app.get("/india-top10", async (req, res) => {
   }
 });
 
+// Health check up...to prevent server from sleeping
+app.get("/health", (req, res) => {
+  res.status(200).send("ok");
+});
+
+
 // ---------- Map: TMX id -> mapUid -> India Top 10 map PBs ----------
 const CACHE_MS = 60 * 1000; // 1 hour
 app.get("/map/india-top10/:tmxId", async (req, res) => {

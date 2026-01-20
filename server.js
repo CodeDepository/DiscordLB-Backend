@@ -78,38 +78,34 @@ app.get("/refresh/india-top10", async (req, res) => {
     // 2) zones -> India + descendants
     const zones = await getZones();
     const { zoneIds } = buildDescendantZoneSet(zones, target);
+    const normalizedZoneIds = new Set([...zoneIds].map((z) => String(z)));
 
     // 3) scan campaign leaderboard until 10 Indians found
     const wanted = 10;
     const requested = 100;
     const found = [];
 
-    const normalizedZoneIds = new Set([...zoneIds].map((z) => String(z)));
-
     for (let offset = 0; offset < 6000 && found.length < wanted; ) {
-      const data = await getMapLeaderboardPage(mapUid, offset, requested);
+      const data = await getCampaignLeaderboardPage(campaign.seasonUid, offset, requested);
       const rows = data?.tops?.[0]?.top || [];
       if (!rows.length) break;
 
       for (const row of rows) {
-        if (!row?.accountId || row?.score == null || row?.zoneId == null) continue;
+        if (!row?.accountId || row?.sp == null || row?.zoneId == null) continue;
         if (!normalizedZoneIds.has(String(row.zoneId))) continue;
 
         found.push({
           accountId: row.accountId,
-          timeOrScore: Number(row.score),
-          positionWorld: row.position,
+          points: Number(row.sp),
         });
 
         if (found.length >= wanted) break;
       }
 
-      offset += rows.length; // no skipping
+      offset += rows.length; // prevents skipping
     }
 
-
-
-    // 4) resolve display names (only up to 10 ids here)
+    // 4) resolve display names
     const nameMap = await resolveDisplayNames(found.map((x) => x.accountId));
 
     // 5) upsert into Mongo
@@ -120,7 +116,7 @@ app.get("/refresh/india-top10", async (req, res) => {
       fetchedAt,
       rankInIndia: i + 1,
       accountId: x.accountId,
-      displayName: nameMap[x.accountId] || x.accountId,
+      displayName: nameMap?.[x.accountId] || x.accountId,
       points: x.points,
     }));
 
@@ -132,16 +128,12 @@ app.get("/refresh/india-top10", async (req, res) => {
       );
     }
 
-    // ✅ Correct response shape for campaign route
-    res.json({
-      campaign,
-      country: target,
-      top10: docs,
-    });
+    res.json({ campaign, country: target, top10: docs });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
 });
+
 
 
 

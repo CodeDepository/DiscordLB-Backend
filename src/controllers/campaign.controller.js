@@ -10,3 +10,4 @@ export async function getCachedIndiaTop10(req, res) {
   const data = await readCampaignIndiaTop10();
   res.json(data);
 }
+
